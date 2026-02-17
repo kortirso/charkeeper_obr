@@ -1,0 +1,12 @@
+{
+  "name": "CharKeeper OBR",
+  "version": "0.0.1",
+  "manifest_version": 1,
+  "action": {
+    "title": "CharKeeper",
+    "icon": "/icon.png",
+    "popover": "/",
+    "height": 600,
+    "width": 400
+  }
+}
