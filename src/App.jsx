@@ -1,4 +1,4 @@
-import { createSignal, For, batch, onMount, onCleanup } from 'solid-js';
+import { createSignal, For, Show, batch, onMount, onCleanup } from 'solid-js';
 import OBR from '@owlbear-rodeo/sdk';
 import { createConsumer } from '@rails/actioncable';
 
@@ -9,7 +9,21 @@ function App() {
   const [campaignId, setCampaignId] = createSignal('');
   const [messages, setMessages] = createSignal([]);
 
+  const [userRole, setUserRole] = createSignal(undefined);
+  const [activeConsumer, setActiveConsumer] = createSignal(undefined);
+
+  const checkCampaign = () => {
+    const url = `http://localhost:5000/owlbear/campaigns/${campaignId()}`;
+    return fetch(url, { method: 'GET' })
+      .then((response) => response.json())
+      .then((data) => data)
+      .catch(() => { return { errors_list: ['Internal server error, an error report has been sent to the developer!'] } });
+  }
+
   const connectToCable = () => {
+    if (activeConsumer()) return;
+    if (campaignId().length === 0) return;
+
     const consumer = createConsumer('ws://localhost:5000/cable');
     const campaignChannel = consumer.subscriptions.create(
       { channel: 'CampaignChannel', campaign_id: campaignId() },
@@ -25,17 +39,31 @@ function App() {
         }
       }
     )
+    setActiveConsumer(consumer);
   }
 
   onMount(() => {
     const readMetadata = async () => {
       const metadata = await OBR.room.getMetadata();
+      const role = await OBR.player.getRole();
+      const theme = await OBR.theme.getTheme();
+
+      if (theme.mode === 'DARK') {
+        document.getElementById('body').className += ' dark'; 
+      }
     
       batch(() => {
         setRegion(metadata.region);
         setCampaignId(metadata.charkeeperChannelId);
+        setUserRole(role);
       });
-      connectToCable();
+
+      const result = await checkCampaign();
+      if (!!result.errors) {
+        setMessages(result.errors.concat(messages()));
+      } else {
+        connectToCable();
+      }
     }
 
     const checkRoom = async () => {
@@ -50,17 +78,8 @@ function App() {
     onCleanup(() => clearInterval(interval));
   });
 
-  const checkCampaign = () => {
-    const url = `http://localhost:5000/owlbear/campaigns/${campaignId()}`;
-    return fetch(url, { method: 'GET' })
-      .then((response) => response.json())
-      .then((data) => data)
-      .catch(() => { return { errors_list: ['Internal server error, an error report has been sent to the developer!'] } });
-  }
-
   const submitCampaign = async () => {
-    const role = await OBR.player.getRole();
-    if (role !== 'GM') return setMessages(['Forbidden'].concat(messages())); // disable for users
+    if (userRole() !== 'GM') return setMessages(['Forbidden'].concat(messages())); // disable for users
     if (campaignId().length === 0) return; // disable for empty ID
 
     const result = await checkCampaign();
@@ -72,17 +91,40 @@ function App() {
     }
   }
 
+  const disconnectCampaign = async () => {
+    if (userRole() !== 'GM') return setMessages(['Forbidden'].concat(messages())); // disable for users
+    if (!activeConsumer()) return;
+
+    activeConsumer().disconnect();
+    await OBR.room.setMetadata({ 'region': 'ru', 'charkeeperChannelId': '' });
+    batch(() => {
+      setActiveConsumer(undefined);
+      setCampaignId('');
+    });
+  }
+
   return (
     <>
-      <div id="login">
-        <select value={region()} onInput={(e) => setRegion(event.currentTarget.value)}>
-          <For each={['en', 'ru']}>
-            {(option) => <option value={option}>{option}</option>}
-          </For>
-        </select>
-        <input placeholder="Campaign ID" value={campaignId()} onInput={(e) => setCampaignId(e.target.value)} />
-        <p onClick={submitCampaign}>Connect</p>
-      </div>
+      <Show when={userRole() === 'GM'}>
+        <Show
+          when={!activeConsumer()}
+          fallback={
+            <div id="logout">
+              <p onClick={disconnectCampaign}>Disconnect</p>
+            </div>
+          }
+        >
+          <div id="login">
+            <select value={region()} onInput={(e) => setRegion(event.currentTarget.value)}>
+              <For each={['en', 'ru']}>
+                {(option) => <option value={option}>{option}</option>}
+              </For>
+            </select>
+            <input placeholder="Campaign ID" value={campaignId()} onInput={(e) => setCampaignId(e.target.value)} />
+            <p onClick={submitCampaign}>Connect</p>
+          </div>
+        </Show>
+      </Show>
       <div id="content">
         <For each={messages()}>
           {(message) =>

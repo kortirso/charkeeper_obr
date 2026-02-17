@@ -3,7 +3,7 @@
   flex-direction: column;
   width: 100%;
   flex: 1;
-  padding: 16px 8px;
+  padding: 16px;
   overflow: hidden;
 }
 
@@ -13,19 +13,38 @@
   align-items: center;
   gap: 10px;
   padding-bottom: 8px;
-  background: #FFF;
 }
 
 #login select {
   height: 30px;
+  border: 1px solid #AAA;
+  border-radius: 4px;
 }
 
 #login input {
   flex: 1;
   height: 30px;
+  border: 1px solid #AAA;
+  border-radius: 4px;
+  background: none;
+  color: rgba(0, 0, 0, 0.87);
 }
 
-#login p {
+.dark #login input {
+  color: #FFF;
+}
+
+#login input::placeholder {
+  color: rgba(0, 0, 0, 0.87);
+  opacity: 0.75; /* Fixes a default opacity issue in Firefox */
+}
+
+.dark #login input::placeholder {
+  color: #FFF;
+  opacity: 0.75; /* Fixes a default opacity issue in Firefox */
+}
+
+#login p, #logout p {
   margin: 0;
   padding: 2px 4px;
   cursor: pointer;
@@ -37,7 +56,7 @@
   flex: 1;
   display: flex;
   flex-direction: column-reverse;
-  overflow-y: scroll;
+  overflow-y: auto;
 }
 
 #content .message {
