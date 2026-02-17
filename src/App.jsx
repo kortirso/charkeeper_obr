@@ -13,7 +13,8 @@ function App() {
   const [activeConsumer, setActiveConsumer] = createSignal(undefined);
 
   const checkCampaign = () => {
-    const url = `http://localhost:5000/owlbear/campaigns/${campaignId()}`;
+    const host = region() === 'ru' ? 'charkeeper.ru' : 'charkeeper.org';
+    const url = `https://${host}/owlbear/campaigns/${campaignId()}`;
     return fetch(url, { method: 'GET' })
       .then((response) => response.json())
       .then((data) => data)
@@ -24,7 +25,8 @@ function App() {
     if (activeConsumer()) return;
     if (campaignId().length === 0) return;
 
-    const consumer = createConsumer('ws://localhost:5000/cable');
+    const host = region() === 'ru' ? 'charkeeper.ru' : 'charkeeper.org';
+    const consumer = createConsumer(`wss://${host}/cable`);
     const campaignChannel = consumer.subscriptions.create(
       { channel: 'CampaignChannel', campaign_id: campaignId() },
       {
